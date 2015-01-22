@@ -1,3 +1,27 @@
+/*
+Package manageSieve implements a simple client for the protocol for remotely managing sieve scripts.
+
+	RFC5804 - https://tools.ietf.org/html/rfc5804
+
+Done
+
+These commands are implemented:
+	STARTSSL
+	AUTHENTICATE (Plain)
+	LISTSCRIPTS
+	GETSCRIPT
+
+TODO
+
+These need to be done:
+	CAPABILITY
+	HAVESPACE
+	PUTSCRIPT
+	SETACTIVE
+	DELETESCRIPT
+	RENAMESCRIPT
+	CHECKSCRIPT
+*/
 package manageSieve
 
 import (

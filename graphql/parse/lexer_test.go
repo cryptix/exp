@@ -151,6 +151,82 @@ func TestLex_talkExample(t *testing.T) {
 	assertLexer(t, l, want)
 }
 
+// https://news.ycombinator.com/item?id=8978936
+func TestLex_hnExample(t *testing.T) {
+	l := lex("hnExample",
+		`viewer() {
+	posts {
+		node {
+			author { id, name, favorite_color },
+		}
+	},
+	friends {
+		node {
+			id,
+			name,
+			favorite_color
+		}
+	},
+	notifications {
+		node {
+			source { id, name, favorite_color }
+		}
+	},
+}`)
+	want := []item{
+		item{itemObjName, "viewer"},
+		item{itemLeftBrace, "("},
+		item{itemRightBrace, ")"},
+		item{itemLeftCurly, "{"},
+		item{itemFieldName, "posts"},
+		item{itemLeftCurly, "{"},
+		item{itemFieldName, "node"},
+		item{itemLeftCurly, "{"},
+		item{itemFieldName, "author"},
+		item{itemLeftCurly, "{"},
+		item{itemFieldName, "id"},
+		item{itemComma, ","},
+		item{itemFieldName, "name"},
+		item{itemComma, ","},
+		item{itemFieldName, "favorite_color"},
+		item{itemRightCurly, "}"},
+		item{itemComma, ","},
+		item{itemRightCurly, "}"}, // node
+		item{itemRightCurly, "}"}, // posts
+		item{itemComma, ","},
+		item{itemFieldName, "friends"},
+		item{itemLeftCurly, "{"},
+		item{itemFieldName, "node"},
+		item{itemLeftCurly, "{"},
+		item{itemFieldName, "id"},
+		item{itemComma, ","},
+		item{itemFieldName, "name"},
+		item{itemComma, ","},
+		item{itemFieldName, "favorite_color"},
+		item{itemRightCurly, "}"}, // node
+		item{itemRightCurly, "}"}, // friends
+		item{itemComma, ","},
+		item{itemFieldName, "notifications"},
+		item{itemLeftCurly, "{"},
+		item{itemFieldName, "node"},
+		item{itemLeftCurly, "{"},
+		item{itemFieldName, "source"},
+		item{itemLeftCurly, "{"},
+		item{itemFieldName, "id"},
+		item{itemComma, ","},
+		item{itemFieldName, "name"},
+		item{itemComma, ","},
+		item{itemFieldName, "favorite_color"},
+		item{itemRightCurly, "}"}, // source
+		item{itemRightCurly, "}"}, // node
+		item{itemRightCurly, "}"}, // notifications
+		item{itemComma, ","},
+		item{itemRightCurly, "}"}, // viewer
+		item{itemEOF, ""},
+	}
+	assertLexer(t, l, want)
+}
+
 func assertLexer(t *testing.T, l *lexer, want []item) {
 	var got []item
 	for i := range l.items {

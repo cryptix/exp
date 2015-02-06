@@ -97,7 +97,7 @@ const (
 )
 
 func lexObjName(l *lexer) stateFn {
-	for len(l.input) > 0 {
+	for len(l.input[l.pos:]) > 0 {
 		switch l.input[l.pos] {
 		case leftBrace:
 			if l.pos > l.start {

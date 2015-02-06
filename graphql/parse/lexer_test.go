@@ -28,6 +28,14 @@ func TestLex_errors(t *testing.T) {
 				item{itemError, "illegal function argument"},
 			},
 		},
+		// BUG(cryptix): error at parse level
+		{"missing parens",
+			"node{}",
+			[]item{
+				item{itemEOF, "node{}"},
+				// item{itemError, "illegal parens argument"},
+			},
+		},
 		{"missing close curly",
 			"node(123){",
 			[]item{
@@ -222,6 +230,31 @@ func TestLex_hnExample(t *testing.T) {
 		item{itemRightCurly, "}"}, // notifications
 		item{itemComma, ","},
 		item{itemRightCurly, "}"}, // viewer
+		item{itemEOF, ""},
+	}
+	assertLexer(t, l, want)
+}
+
+func TestLex_ghcomment(t *testing.T) {
+	l := lex("ghcomment", `friends.first(1) { edges { cursor, node { name } } }`)
+	want := []item{
+		item{itemObjName, "friends"},
+		item{itemDot, "."},
+		item{itemFunction, "first"},
+		item{itemLeftBrace, "("},
+		item{itemFnArgument, "1"},
+		item{itemRightBrace, ")"},
+		item{itemLeftCurly, "{"},
+		item{itemFieldName, "edges"},
+		item{itemLeftCurly, "{"},
+		item{itemFieldName, "cursor"},
+		item{itemComma, ","},
+		item{itemFieldName, "node"},
+		item{itemLeftCurly, "{"},
+		item{itemFieldName, "name"},
+		item{itemRightCurly, "}"},
+		item{itemRightCurly, "}"},
+		item{itemRightCurly, "}"},
 		item{itemEOF, ""},
 	}
 	assertLexer(t, l, want)

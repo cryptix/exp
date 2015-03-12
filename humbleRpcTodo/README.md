@@ -1,0 +1,1 @@
+Fork of the [humble](https://github.com/soroushjp/humble) TodoMVC example but using [net/rpc](http://golang.org/pkg/net/rpc) instead of json REST - idea taken from @shurcooL [src](https://github.com/shurcooL/play/commit/e7e89367c071462ed0d150663bba54a78c06deed#comments)

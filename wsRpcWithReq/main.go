@@ -19,17 +19,23 @@ type Args struct {
 }
 
 type Arith struct {
-	req       *http.Request
-	connClose func() error
+	req         *http.Request
+	connClose   func() error
+	callCounter int
 }
 
 func (a *Arith) Multiply(args *Args, reply *int) error {
-	fmt.Println("from", a.req.RemoteAddr)
-	c, err := a.req.Cookie("AwesomeRPC")
+	fmt.Println(a.callCounter, "from", a.req.RemoteAddr)
+	c, err := a.req.Cookie("JSESSIONID")
 	if err != nil {
 		return err
 	}
 	fmt.Println("cookie:", c)
+
+	if a.callCounter > 5 {
+		return a.connClose()
+	}
+	a.callCounter++
 
 	*reply = args.A * args.B
 	fmt.Printf("locally multiplying %v by %v -> %v\n", args.A, args.B, *reply)
@@ -37,8 +43,6 @@ func (a *Arith) Multiply(args *Args, reply *int) error {
 }
 
 func main() {
-	rpc.Register(&Arith{})
-
 	http.Handle("/rpc-websocket", websocket.Handler(func(conn *websocket.Conn) {
 		s := rpc.NewServer()
 		a := &Arith{

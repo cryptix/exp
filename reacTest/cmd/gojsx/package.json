@@ -1,0 +1,15 @@
+{
+  "name": "gojsx",
+  "version": "0.0.0",
+  "description": "like jsx but using ducktape",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "browserify": "^8.1.3",
+    "react-tools": "^0.12.2"
+  }
+}

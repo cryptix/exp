@@ -1,0 +1,38 @@
+1a2,3
+> //
+> // based on https://github.com/shurcooL/play/tree/master/42
+19c21,38
+< type Arith struct{}
+---
+> type Arith struct {
+> 	req         *http.Request
+> 	connClose   func() error
+> 	callCounter int
+> }
+> 
+> func (a *Arith) Multiply(args *Args, reply *int) error {
+> 	fmt.Println(a.callCounter, "from", a.req.RemoteAddr)
+> 	c, err := a.req.Cookie("JSESSIONID")
+> 	if err != nil {
+> 		return err
+> 	}
+> 	fmt.Println("cookie:", c)
+> 
+> 	if a.callCounter > 5 {
+> 		return a.connClose()
+> 	}
+> 	a.callCounter++
+21d39
+< func (_ *Arith) Multiply(args *Args, reply *int) error {
+28d45
+< 	rpc.Register(&Arith{})
+30c47,53
+< 		jsonrpc.ServeConn(conn)
+---
+> 		s := rpc.NewServer()
+> 		a := &Arith{
+> 			req:       conn.Request(),
+> 			connClose: conn.Close,
+> 		}
+> 		s.Register(a)
+> 		s.ServeCodec(jsonrpc.NewServerCodec(conn))

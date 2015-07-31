@@ -78,7 +78,7 @@ func main() {
 	//t = instrumentTodo(requests, duration, t)
 
 	// Server domain
-	todoEndpoints := makeTodoEndpoints(t)
+	todoEndpoints := makeTodoServerEndpoints(t)
 
 	// Mechanical stuff
 	rand.Seed(time.Now().UnixNano())

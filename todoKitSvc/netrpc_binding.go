@@ -5,11 +5,12 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/cryptix/exp/todoKitSvc/reqrep"
+	"github.com/cryptix/exp/todoKitSvc/todosvc"
 )
 
 type NetrpcBinding struct {
 	ctx       context.Context
-	endpoints todoEndpoints
+	endpoints todosvc.Endpoints
 }
 
 func (b NetrpcBinding) Add(request reqrep.AddRequest, response *reqrep.AddResponse) error {

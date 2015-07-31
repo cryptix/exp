@@ -9,13 +9,8 @@ import (
 )
 
 // TODO add rest of methods
-type todoEndpoints struct {
-	Add, List endpoint.Endpoint
-}
-
-// TODO add rest of methods
-func makeTodoEndpoints(t todosvc.Todo) todoEndpoints {
-	return todoEndpoints{
+func makeTodoServerEndpoints(t todosvc.Todo) todosvc.Endpoints {
+	return todosvc.Endpoints{
 		Add:  makeAddEndpoint(t),
 		List: makeListEndpoint(t),
 	}
@@ -34,8 +29,8 @@ func makeAddEndpoint(t todosvc.Todo) endpoint.Endpoint {
 			return nil, endpoint.ErrBadCast
 		}
 
-		id, err := t.Add(ctx, addReq.Name)
-		return reqrep.AddResponse{ID: id}, err
+		id, err := t.Add(ctx, addReq.Title)
+		return reqrep.AddResponse{ID: id, Err: err}, nil // TODO(cryptix): do we want to return the error here?..
 	}
 }
 
@@ -53,6 +48,6 @@ func makeListEndpoint(t todosvc.Todo) endpoint.Endpoint {
 		}
 
 		l, err := t.List(ctx)
-		return reqrep.ListResponse{List: l, Err: err}, nil // do we want to return the error here?..
+		return reqrep.ListResponse{List: l, Err: err}, nil // TODO(cryptix): do we want to return the error here?..
 	}
 }

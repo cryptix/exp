@@ -1,6 +1,9 @@
 package todosvc
 
-import "golang.org/x/net/context"
+import (
+	"github.com/go-kit/kit/endpoint"
+	"golang.org/x/net/context"
+)
 
 type Item struct {
 	ID       ID
@@ -24,4 +27,8 @@ type Todo interface {
 
 	// Delete removes the Item from the service
 	Delete(context.Context, ID) error
+}
+
+type Endpoints struct {
+	Add, List, Toggle, Delete endpoint.Endpoint
 }

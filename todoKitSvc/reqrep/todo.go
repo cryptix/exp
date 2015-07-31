@@ -5,11 +5,12 @@ import "github.com/cryptix/exp/todoKitSvc/todosvc"
 // Add
 
 type AddRequest struct {
-	Name string
+	Title string
 }
 
 type AddResponse struct {
-	ID todosvc.ID
+	ID  todosvc.ID
+	Err error
 }
 
 // List

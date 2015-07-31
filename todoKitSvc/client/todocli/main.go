@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/rpc"
 	"net/url"
 	"os"
 	"strings"
@@ -12,15 +13,16 @@ import (
 
 	client "github.com/cryptix/exp/todoKitSvc/client"
 	httpclient "github.com/cryptix/exp/todoKitSvc/client/http"
+	netrpcclient "github.com/cryptix/exp/todoKitSvc/client/netrpc"
 	"github.com/cryptix/exp/todoKitSvc/todosvc"
 )
 
 func main() {
 	fs := flag.NewFlagSet("todocli", flag.ExitOnError)
 	var (
-		transport = fs.String("transport", "http", "http, netrpc")
-		httpAddr  = fs.String("http.addr", "localhost:8001", "HTTP (JSON) address")
-		//netrpcAddr = fs.String("netrpc.addr", "localhost:8003", "net/rpc address")
+		transport  = fs.String("transport", "http", "http, netrpc")
+		httpAddr   = fs.String("http.addr", "localhost:8001", "HTTP (JSON) address")
+		netrpcAddr = fs.String("netrpc.addr", "localhost:8003", "net/rpc address")
 	)
 	flag.Usage = fs.Usage
 	fs.Parse(os.Args[1:])
@@ -40,12 +42,11 @@ func main() {
 		e = httpclient.NewClient("GET", u.String())
 
 	case "netrpc":
-		log.Fatalf("unsupported transport %q", *transport)
-		//client, err := rpc.DialHTTP("tcp", *netrpcAddr)
-		//if err != nil {
-		//	log.Fatalf("rpc.DialHTTP: %v", err)
-		//}
-		//e = netrpcclient.NewClient(client)
+		client, err := rpc.DialHTTP("tcp", *netrpcAddr)
+		if err != nil {
+			log.Fatalf("rpc.DialHTTP: %v", err)
+		}
+		e = netrpcclient.NewClient(client)
 
 	default:
 		log.Fatalf("unsupported transport %q", *transport)

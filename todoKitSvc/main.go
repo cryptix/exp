@@ -131,7 +131,7 @@ func main() {
 		ctx, cancel := context.WithCancel(root)
 		defer cancel()
 		s := rpc.NewServer()
-		s.RegisterName("addsvc", NetrpcBinding{ctx, todoEndpoints})
+		s.RegisterName("todosvc", NetrpcBinding{ctx, todoEndpoints})
 		s.HandleHTTP(rpc.DefaultRPCPath, rpc.DefaultDebugPath)
 		logger.Log("addr", *netrpcAddr, "transport", "net/rpc")
 		errc <- http.ListenAndServe(*netrpcAddr, s)

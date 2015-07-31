@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	stdlog "log"
 	"math/rand"
 	"net/http"
@@ -14,7 +15,12 @@ import (
 	"time"
 
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/metrics"
+	"github.com/go-kit/kit/metrics/expvar"
+	"github.com/go-kit/kit/metrics/prometheus"
+	"github.com/go-kit/kit/metrics/statsd"
 	httptransport "github.com/go-kit/kit/transport/http"
+	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
 
 	"github.com/cryptix/exp/todoKitSvc/reqrep"
@@ -43,28 +49,26 @@ func main() {
 	stdlog.SetFlags(0)                                // flags are handled in our logger
 
 	// `package metrics` domain
-
-	// TODO(cryptix): instrument
-	//requests := metrics.NewMultiCounter(
-	//	expvar.NewCounter("requests"),
-	//	statsd.NewCounter(ioutil.Discard, "requests_total", time.Second),
-	//	prometheus.NewCounter(stdprometheus.CounterOpts{
-	//		Namespace: "todosvc",
-	//		Subsystem: "add",
-	//		Name:      "requests_total",
-	//		Help:      "Total number of received requests.",
-	//	}, []string{}),
-	//)
-	//duration := metrics.NewTimeHistogram(time.Nanosecond, metrics.NewMultiHistogram(
-	//	expvar.NewHistogram("duration_nanoseconds_total", 0, 1e9, 3, 50, 95, 99),
-	//	statsd.NewHistogram(ioutil.Discard, "duration_nanoseconds_total", time.Second),
-	//	prometheus.NewSummary(stdprometheus.SummaryOpts{
-	//		Namespace: "todosvc",
-	//		Subsystem: "add",
-	//		Name:      "duration_nanoseconds_total",
-	//		Help:      "Total nanoseconds spend serving requests.",
-	//	}, []string{}),
-	//))
+	requests := metrics.NewMultiCounter(
+		expvar.NewCounter("requests"),
+		statsd.NewCounter(ioutil.Discard, "requests_total", time.Second),
+		prometheus.NewCounter(stdprometheus.CounterOpts{
+			Namespace: "todosvc",
+			Subsystem: "add",
+			Name:      "requests_total",
+			Help:      "Total number of received requests.",
+		}, []string{}),
+	)
+	duration := metrics.NewTimeHistogram(time.Nanosecond, metrics.NewMultiHistogram(
+		expvar.NewHistogram("duration_nanoseconds_total", 0, 1e9, 3, 50, 95, 99),
+		statsd.NewHistogram(ioutil.Discard, "duration_nanoseconds_total", time.Second),
+		prometheus.NewSummary(stdprometheus.SummaryOpts{
+			Namespace: "todosvc",
+			Subsystem: "add",
+			Name:      "duration_nanoseconds_total",
+			Help:      "Total nanoseconds spend serving requests.",
+		}, []string{}),
+	))
 
 	// Our business and operational domain
 	var t todosvc.Todo = todosvc.NewInmemTodo()
@@ -75,7 +79,7 @@ func main() {
 		//t = proxyTodo{e, logger}
 	}
 	t = NewLoggingTodo(logger, t)
-	//t = instrumentTodo(requests, duration, t)
+	t = NewInstrumentedTodo(requests, duration, t)
 
 	// Server domain
 	todoEndpoints := makeTodoServerEndpoints(t)

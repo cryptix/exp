@@ -5,6 +5,7 @@ import (
 
 	"github.com/cryptix/exp/todoKitSvc/todosvc"
 	"github.com/go-kit/kit/log"
+	"github.com/go-kit/kit/metrics"
 	"golang.org/x/net/context"
 )
 
@@ -49,15 +50,48 @@ func (l loggingTodo) Delete(ctx context.Context, id todosvc.ID) (err error) {
 	return err
 }
 
-// TODO
-//func instrument(requests metrics.Counter, duration metrics.TimeHistogram) func(Todo) Todo {
-//	return func(next Todo) Todo {
-//		return func(ctx context.Context, a, b int64) int64 {
-//			defer func(begin time.Time) {
-//				requests.Add(1)
-//				duration.Observe(time.Since(begin))
-//			}(time.Now())
-//			return next(ctx, a, b)
-//		}
-//	}
-//}
+func NewInstrumentedTodo(r metrics.Counter, d metrics.TimeHistogram, t todosvc.Todo) todosvc.Todo {
+	return instrumentedTodo{r, d, t}
+}
+
+type instrumentedTodo struct {
+	reqcnt metrics.Counter
+	reqdur metrics.TimeHistogram
+	next   todosvc.Todo
+}
+
+func (l instrumentedTodo) Add(ctx context.Context, title string) (id todosvc.ID, err error) {
+	defer func(begin time.Time) {
+		l.reqcnt.Add(1)
+		l.reqdur.Observe(time.Since(begin))
+	}(time.Now())
+	id, err = l.next.Add(ctx, title)
+	return id, err
+}
+
+func (l instrumentedTodo) List(ctx context.Context) (items []todosvc.Item, err error) {
+	defer func(begin time.Time) {
+		l.reqcnt.Add(1)
+		l.reqdur.Observe(time.Since(begin))
+	}(time.Now())
+	items, err = l.next.List(ctx)
+	return items, err
+}
+
+func (l instrumentedTodo) Toggle(ctx context.Context, id todosvc.ID) (err error) {
+	defer func(begin time.Time) {
+		l.reqcnt.Add(1)
+		l.reqdur.Observe(time.Since(begin))
+	}(time.Now())
+	err = l.next.Toggle(ctx, id)
+	return err
+}
+
+func (l instrumentedTodo) Delete(ctx context.Context, id todosvc.ID) (err error) {
+	defer func(begin time.Time) {
+		l.reqcnt.Add(1)
+		l.reqdur.Observe(time.Since(begin))
+	}(time.Now())
+	err = l.next.Delete(ctx, id)
+	return err
+}

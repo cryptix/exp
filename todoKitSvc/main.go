@@ -23,6 +23,8 @@ import (
 	stdprometheus "github.com/prometheus/client_golang/prometheus"
 	"golang.org/x/net/context"
 
+	"github.com/cryptix/exp/todoKitSvc/client"
+	httpclient "github.com/cryptix/exp/todoKitSvc/client/http"
 	"github.com/cryptix/exp/todoKitSvc/reqrep"
 	"github.com/cryptix/exp/todoKitSvc/todosvc"
 )
@@ -73,10 +75,8 @@ func main() {
 	// Our business and operational domain
 	var t todosvc.Todo = todosvc.NewInmemTodo()
 	if *proxyHTTPURL != "" {
-		panic("TODO - not implemented")
-		//var e endpoint.Endpoint
-		//e = httpTodo.NewClient("GET", *proxyHTTPURL, nil)
-		//t = proxyTodo{e, logger}
+		e := httpclient.NewClient("GET", *proxyHTTPURL)
+		t = client.NewClient(e)
 	}
 	t = NewLoggingTodo(logger, t)
 	t = NewInstrumentedTodo(requests, duration, t)

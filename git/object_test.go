@@ -4,6 +4,7 @@ import (
 	"crypto/sha1"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/cheekybits/is"
 	"github.com/kylelemons/godebug/diff"
@@ -57,12 +58,27 @@ func TestUnpackObject_blob(t *testing.T) {
 
 		// commit
 		{
-			Fname:  "tests/commit/3c4e9cd789d88d8d89c1073707c3585e41b0e614",
-			Object: &Object{Type: CommitT},
+			Fname: "tests/commit/de70159e4a5842aed0aae9380e3006e909c8feb4",
+			Object: &Object{Type: CommitT, Size: 165,
+				commit: &Commit{
+					Tree:      "d8329fc1cc938780ffdd9f94e0d364e0ea74f579",
+					Author:    &Stamp{Name: "Henry", Email: "cryptix@riseup.net", When: time.Unix(1438988455, 0)},
+					Committer: &Stamp{Name: "Henry", Email: "cryptix@riseup.net", When: time.Unix(1438988455, 0)},
+					Message:   "first commit",
+				},
+			},
 		},
 		{
-			Fname:  "tests/commit/ad8fdc888c6f6caed63af0fb08484901e4e7e41e",
-			Object: &Object{Type: CommitT},
+			Fname: "tests/commit/ad8fdc888c6f6caed63af0fb08484901e4e7e41e",
+			Object: &Object{Type: CommitT, Size: 165,
+				commit: &Commit{
+					Tree:      "d8329fc1cc938780ffdd9f94e0d364e0ea74f579",
+					Author:    &Stamp{Name: "Henry", Email: "cryptix@riseup.net", When: time.Unix(1438995813, 0)},
+					Committer: &Stamp{Name: "Henry", Email: "cryptix@riseup.net", When: time.Unix(1438995813, 0)},
+					Message:   "first commit",
+				},
+			},
+			// TODO(cryptix): add example with Parent
 		},
 	}
 
@@ -75,8 +91,6 @@ func TestUnpackObject_blob(t *testing.T) {
 		is.Equal(diff, "")
 		is.Nil(f.Close())
 	}
-
-	t.Fail()
 }
 
 func shaFromStr(str string) [sha1.Size]byte {

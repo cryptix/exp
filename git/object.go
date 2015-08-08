@@ -10,6 +10,8 @@ import (
 	"io"
 	"io/ioutil"
 	"strconv"
+	"strings"
+	"time"
 
 	"gopkg.in/errgo.v1"
 )
@@ -24,10 +26,11 @@ const (
 )
 
 type Object struct {
-	Type Type
-	Size int64
-	tree []Tree
-	blob *Blob
+	Type   Type
+	Size   int64
+	tree   []Tree
+	blob   *Blob
+	commit *Commit
 }
 
 func newBlob(content []byte) *Blob {
@@ -35,11 +38,34 @@ func newBlob(content []byte) *Blob {
 	return &b
 }
 
+type Hash [sha1.Size]byte
+
+func (h Hash) String() string {
+	return hex.EncodeToString(h[:])
+}
+
 type Blob []byte
 
 type Tree struct {
 	Mode, Name string
-	SHA1Sum    [sha1.Size]byte
+	SHA1Sum    Hash
+}
+
+type Stamp struct {
+	Name  string
+	Email string
+	When  time.Time
+}
+
+func (s Stamp) String() string {
+	//return fmt.Sprintf("%s <%s> %s", s.Name, s.Email, s.When.Format(time.RFC3339))
+	return fmt.Sprintf("%q <%q> %d", s.Name, s.Email, s.When.Unix())
+}
+
+type Commit struct {
+	Author, Committer *Stamp
+	Tree, Parent      string
+	Message           string
 }
 
 func (o Object) String() string {
@@ -52,12 +78,23 @@ func (o Object) String() string {
 
 	case TreeT:
 		if o.tree == nil {
-			return "broken blob"
+			return "broken tree"
 		}
 		s := fmt.Sprintf("tree<%d>\n", o.Size)
 		for _, t := range o.tree {
-			s += fmt.Sprintf("%q\t%q\t%s\n", t.Mode, t.Name, hex.EncodeToString(t.SHA1Sum[:]))
+			s += fmt.Sprintf("%q\t%q\t%s\n", t.Mode, t.Name, t.SHA1Sum)
 		}
+		return s
+
+	case CommitT:
+		if o.commit == nil {
+			return "broken commit"
+		}
+		s := fmt.Sprintf("commit<%d>\n", o.Size)
+		s += fmt.Sprintln("Tree:", o.commit.Tree)
+		s += fmt.Sprintln("Author:", o.commit.Author)
+		s += fmt.Sprintln("Committer:", o.commit.Committer)
+		s += o.commit.Message
 		return s
 
 	default:
@@ -109,7 +146,6 @@ func DecodeObject(r io.Reader) (*Object, error) {
 			return nil, errgo.Notef(err, "error finding header 0byte")
 		}
 		o.blob = newBlob(content)
-		return o, nil
 
 	case TreeT:
 		o.tree, err = decodeTreeEntries(lr)
@@ -119,11 +155,17 @@ func DecodeObject(r io.Reader) (*Object, error) {
 			}
 			return nil, errgo.Notef(err, "decodecodeTreeEntries failed")
 		}
-		return o, nil
+
+	case CommitT:
+		o.commit, err = decodeCommit(lr)
+		if err != nil {
+			return nil, errgo.Notef(err, "decodeCommit() failed")
+		}
 
 	default:
 		return nil, errgo.Newf("illegal object type:%T %v", o.Type, o.Type)
 	}
+	return o, nil
 }
 
 func decodeTreeEntries(r io.Reader) ([]Tree, error) {
@@ -154,4 +196,65 @@ func decodeTreeEntries(r io.Reader) ([]Tree, error) {
 		t.SHA1Sum = hash
 		entries = append(entries, t)
 	}
+}
+
+func decodeCommit(r io.Reader) (*Commit, error) {
+	var (
+		s     = bufio.NewScanner(r)
+		c     Commit
+		isMsg bool
+		err   error
+	)
+	for s.Scan() {
+		line := s.Text()
+		switch {
+		case strings.HasPrefix(line, "tree "):
+			c.Tree = line[5:]
+		case strings.HasPrefix(line, "author "):
+			c.Author, err = decodeStamp(line[7:])
+			if err != nil {
+				return nil, errgo.Notef(err, "decodeStamp(%q) failed", line[7:])
+			}
+		case strings.HasPrefix(line, "committer "):
+			c.Committer, err = decodeStamp(line[10:])
+			if err != nil {
+				return nil, errgo.Notef(err, "decodeStamp(%q) failed", line[10:])
+			}
+		case line == "":
+			isMsg = true
+		case isMsg:
+			c.Message += line
+		default:
+			fmt.Println("default commit line:", line)
+		}
+	}
+	if err := s.Err(); err != nil {
+		return nil, errgo.Notef(err, "scanner error")
+	}
+	return &c, nil
+}
+
+func decodeStamp(s string) (*Stamp, error) {
+	var stamp Stamp
+	mailIdxLeft := strings.Index(s, "<")
+	if mailIdxLeft < 0 {
+		return nil, errgo.Newf("no '<' in stamp")
+	}
+	mailIdxRight := strings.Index(s, ">")
+	if mailIdxRight < 0 {
+		return nil, errgo.Newf("no '>' in stamp")
+	}
+	stamp.Name = s[:mailIdxLeft-1]
+	stamp.Email = s[mailIdxLeft+1 : mailIdxRight]
+	epoc, err := strconv.ParseInt(s[mailIdxRight+2:len(s)-6], 10, 64)
+	if err != nil {
+		return nil, errgo.Notef(err, "parseInt() failed")
+	}
+	when := time.Unix(epoc, 0)
+	loc, err := time.Parse("-0700", s[len(s)-5:])
+	if err != nil {
+		return nil, errgo.Notef(err, "timezone decode failed")
+	}
+	stamp.When = when.In(loc.Location())
+	return &stamp, nil
 }

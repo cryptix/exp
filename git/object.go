@@ -33,6 +33,27 @@ type Object struct {
 	commit *Commit
 }
 
+func (o Object) Tree() ([]Tree, bool) {
+	if o.Type != TreeT || o.tree == nil {
+		return nil, false
+	}
+	return o.tree, true
+}
+
+func (o Object) Commit() (*Commit, bool) {
+	if o.Type != CommitT || o.commit == nil {
+		return nil, false
+	}
+	return o.commit, true
+}
+
+func (o Object) Blob() ([]byte, bool) {
+	if o.Type != CommitT || o.blob == nil {
+		return nil, false
+	}
+	return *o.blob, true
+}
+
 func newBlob(content []byte) *Blob {
 	b := Blob(content)
 	return &b
@@ -210,6 +231,8 @@ func decodeCommit(r io.Reader) (*Commit, error) {
 		switch {
 		case strings.HasPrefix(line, "tree "):
 			c.Tree = line[5:]
+		case strings.HasPrefix(line, "parent "):
+			c.Parent = line[7:]
 		case strings.HasPrefix(line, "author "):
 			c.Author, err = decodeStamp(line[7:])
 			if err != nil {

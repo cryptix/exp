@@ -79,8 +79,8 @@ type Stamp struct {
 }
 
 func (s Stamp) String() string {
-	//return fmt.Sprintf("%s <%s> %s", s.Name, s.Email, s.When.Format(time.RFC3339))
-	return fmt.Sprintf("%q <%q> %d", s.Name, s.Email, s.When.Unix())
+	return fmt.Sprintf("%s <%s> %s", s.Name, s.Email, s.When.Format(time.RFC3339))
+	//return fmt.Sprintf("%q <%q> %d", s.Name, s.Email, s.When.Unix())
 }
 
 type Commit struct {
@@ -96,7 +96,6 @@ func (o Object) String() string {
 			return "broken blob"
 		}
 		return fmt.Sprintf("blob<%d> %q", o.Size, string(*o.blob))
-
 	case TreeT:
 		if o.tree == nil {
 			return "broken tree"
@@ -106,7 +105,6 @@ func (o Object) String() string {
 			s += fmt.Sprintf("%q\t%q\t%s\n", t.Mode, t.Name, t.SHA1Sum)
 		}
 		return s
-
 	case CommitT:
 		if o.commit == nil {
 			return "broken commit"
@@ -117,7 +115,6 @@ func (o Object) String() string {
 		s += fmt.Sprintln("Committer:", o.commit.Committer)
 		s += o.commit.Message
 		return s
-
 	default:
 		return "broken object"
 	}
@@ -133,33 +130,27 @@ func DecodeObject(r io.Reader) (*Object, error) {
 	if err != nil {
 		return nil, errgo.Notef(err, "error finding header 0byte")
 	}
-
 	o := &Object{}
 	var hdrLenStr string
 	switch {
 	case bytes.HasPrefix(header, []byte("blob ")):
 		o.Type = BlobT
 		hdrLenStr = string(header[5 : len(header)-1])
-
 	case bytes.HasPrefix(header, []byte("tree ")):
 		o.Type = TreeT
 		hdrLenStr = string(header[5 : len(header)-1])
-
 	case bytes.HasPrefix(header, []byte("commit ")):
 		o.Type = CommitT
 		hdrLenStr = string(header[7 : len(header)-1])
-
 	default:
 		return nil, errgo.Newf("illegal git object:%q", header)
 	}
-
 	hdrLen, err := strconv.ParseInt(hdrLenStr, 10, 64)
 	if err != nil {
 		return nil, errgo.Notef(err, "error parsing header length")
 	}
 	o.Size = hdrLen
 	lr := io.LimitReader(br, hdrLen)
-
 	switch o.Type {
 	case BlobT:
 		content, err := ioutil.ReadAll(lr)
@@ -167,7 +158,6 @@ func DecodeObject(r io.Reader) (*Object, error) {
 			return nil, errgo.Notef(err, "error finding header 0byte")
 		}
 		o.blob = newBlob(content)
-
 	case TreeT:
 		o.tree, err = decodeTreeEntries(lr)
 		if err != nil {
@@ -176,13 +166,11 @@ func DecodeObject(r io.Reader) (*Object, error) {
 			}
 			return nil, errgo.Notef(err, "decodecodeTreeEntries failed")
 		}
-
 	case CommitT:
 		o.commit, err = decodeCommit(lr)
 		if err != nil {
 			return nil, errgo.Notef(err, "decodeCommit() failed")
 		}
-
 	default:
 		return nil, errgo.Newf("illegal object type:%T %v", o.Type, o.Type)
 	}
@@ -205,7 +193,6 @@ func decodeTreeEntries(r io.Reader) ([]Tree, error) {
 		}
 		t.Mode = string(modeName[0])
 		t.Name = string(modeName[1])
-
 		var hash [sha1.Size]byte
 		n, err := br.Read(hash[:])
 		if err != nil {
@@ -248,7 +235,7 @@ func decodeCommit(r io.Reader) (*Commit, error) {
 		case isMsg:
 			c.Message += line
 		default:
-			fmt.Println("default commit line:", line)
+			return nil, errgo.Newf("unhandled commit line: %q", line)
 		}
 	}
 	if err := s.Err(); err != nil {
@@ -260,15 +247,25 @@ func decodeCommit(r io.Reader) (*Commit, error) {
 func decodeStamp(s string) (*Stamp, error) {
 	var stamp Stamp
 	mailIdxLeft := strings.Index(s, "<")
-	if mailIdxLeft < 0 {
-		return nil, errgo.Newf("no '<' in stamp")
+	if mailIdxLeft == -1 {
+		return nil, errgo.New("stamp: no '<' in stamp")
 	}
 	mailIdxRight := strings.Index(s, ">")
-	if mailIdxRight < 0 {
-		return nil, errgo.Newf("no '>' in stamp")
+	if mailIdxRight == -1 {
+		return nil, errgo.New("stamp: no '>' in stamp")
 	}
-	stamp.Name = s[:mailIdxLeft-1]
+	if mailIdxLeft > mailIdxRight {
+		return nil, errgo.New("stamp: '>' left of '<'")
+	}
+	if mailIdxLeft == 0 {
+		stamp.Name = "empty name"
+	} else {
+		stamp.Name = s[:mailIdxLeft-1]
+	}
 	stamp.Email = s[mailIdxLeft+1 : mailIdxRight]
+	if len(s)-6-(mailIdxRight+2) < 0 {
+		return nil, errgo.Newf("stamp: illegal timestamp: %q", s)
+	}
 	epoc, err := strconv.ParseInt(s[mailIdxRight+2:len(s)-6], 10, 64)
 	if err != nil {
 		return nil, errgo.Notef(err, "parseInt() failed")

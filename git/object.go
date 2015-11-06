@@ -48,7 +48,7 @@ func (o Object) Commit() (*Commit, bool) {
 }
 
 func (o Object) Blob() ([]byte, bool) {
-	if o.Type != CommitT || o.blob == nil {
+	if o.Type != BlobT || o.blob == nil {
 		return nil, false
 	}
 	return *o.blob, true

@@ -1,43 +1,43 @@
 package feed
 
 import (
+	"html/template"
 	"net/http"
 	"testing"
 
 	"github.com/cryptix/go/http/render"
 	"github.com/cryptix/go/http/tester"
+	"gopkg.in/errgo.v1"
 
-	"DST/tisdb/mockdb"
-	"DST/webApp"
-	"DST/webClient"
-	"DST/webRouter"
+	"github.com/cryptix/exp/multiModulePage"
+	"github.com/cryptix/exp/multiModulePage/router"
 )
 
 var (
 	testMux    *http.ServeMux
 	testClient *tester.Tester
-	testRouter = webRouter.ArchiveApp(nil)
-	fakeA      *mockdb.Archive
+	testRouter = router.FeedApp(nil)
 )
 
-func init() {
-	render.Init(webApp.Assets, []string{"/testing/navbar.tmpl", "/testing/base.tmpl"})
-	render.AddTemplates([]string{"/error.tmpl"})
-	render.SetAppRouter(testRouter)
-	render.Load()
-}
-
 func setup(t *testing.T) {
+	var err error
+	r, err = render.New(multiModulePage.Assets,
+		render.BaseTemplate("/testing/base.tmpl"),
+		render.AddTemplates(append(HTMLTemplates, "/error.tmpl")...),
+		render.FuncMap(template.FuncMap{
+			"urlTo": multiModulePage.NewURLTo(testRouter),
+		}),
+	)
+	if err != nil {
+		t.Fatal(errgo.Notef(err, "setup: render init failed"))
+	}
 	testMux = http.NewServeMux()
-	testMux.Handle("/", Handler(testRouter, ""))
+	testMux.Handle("/", Handler(testRouter))
 	testClient = tester.New(testMux, t)
-	fakeA = new(mockdb.Archive)
-	apiclient = &webClient.Client{Archive: fakeA}
 }
 
 func teardown() {
-	apiclient = nil
+	r = nil
 	testMux = nil
 	testClient = nil
-	fakeA = nil
 }

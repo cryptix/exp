@@ -1,0 +1,13 @@
+{{ define "title" }}<title>Feed - Post</title>{{ end }}
+{{ define "content" }}
+<div class="page-header">
+  <h1>{{.Name}}</h1>
+</div>
+<div class="row">
+<div class="col-md-12">
+<p>{{.Text}}</p>
+</div>
+</div> <!-- /row -->
+<a href="{{urlTo "Feed:overview"}}" id="overview">Overview</a>
+<a href="{{urlTo "Feed:post" "PostID" "3"}}" id="next">Overview</a>
+{{end}}

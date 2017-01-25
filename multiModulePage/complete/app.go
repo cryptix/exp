@@ -8,10 +8,12 @@ package complete
 import (
 	"net/http"
 
-	"github.com/cryptix/exp/multiModulePage"
-	"github.com/cryptix/exp/multiModulePage/router"
 	"github.com/cryptix/go/http/render"
 	"github.com/gorilla/mux"
+
+	"github.com/cryptix/exp/multiModulePage"
+	"github.com/cryptix/exp/multiModulePage/feed"
+	"github.com/cryptix/exp/multiModulePage/router"
 )
 
 func init() {

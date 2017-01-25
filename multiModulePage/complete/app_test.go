@@ -22,7 +22,7 @@ func init() {
 
 func setup(t *testing.T) {
 	testMux = http.NewServeMux()
-	h, err := Handler(testRouter, "")
+	h, err := Handler(testRouter)
 	if err != nil {
 		t.Fatalf("handler setup failed: %s", err)
 	}

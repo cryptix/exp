@@ -1,5 +1,14 @@
 package multiModulePage
 
-import "net/http"
+import (
+	"net/http"
+	"path/filepath"
 
-var Assets = http.Dir("tmpl/")
+	"github.com/cryptix/go/goutils"
+)
+
+var Assets = http.Dir(
+	filepath.Join(
+		goutils.LocatePackage("github.com/cryptix/exp/multiModulePage"),
+		"tmpl"),
+)

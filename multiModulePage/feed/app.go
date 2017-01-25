@@ -16,7 +16,29 @@ var HTMLTemplates = []string{
 }
 
 var l = logging.Logger("webApp/archive")
+
+// TODO: shouldn't be global. maybe part of a type that fulfils a SetRenderer interface?
 var r *render.Renderer
+
+func SetRenderer(ren *render.Renderer) {
+	r = ren
+}
+
+/*
+type FeedPage struct{}
+
+func (fp FeedPage) GetTemplates() []string {
+	return HTMLTemplates
+}
+
+type Pages interface {
+	SetRenderer(*render.Renderer)
+	GetTemplates() []string
+	Handler(*mux.Router)
+}
+
+var _ Pages = FeedPage{}
+*/
 
 // Handler creates a http.Handler with all the archives routes attached to it
 func Handler(m *mux.Router) http.Handler {

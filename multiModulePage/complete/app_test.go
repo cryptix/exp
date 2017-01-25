@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/cryptix/exp/multiModulePage/router"
-	"github.com/cryptix/go/http/render"
 	"github.com/cryptix/go/http/tester"
 )
 
@@ -14,11 +13,6 @@ var (
 	testClient *tester.Tester
 	testRouter = router.CompleteApp()
 )
-
-func init() {
-	render.SetAppRouter(testRouter)
-	render.Load()
-}
 
 func setup(t *testing.T) {
 	testMux = http.NewServeMux()

@@ -15,7 +15,7 @@ func FeedApp(m *mux.Router) *mux.Router {
 	}
 
 	m.Path("/").Methods("GET").Name(FeedOverview)
-	m.Path("/feed/{PostID:[0-9]+}").Methods("GET").Name(FeedPost)
+	m.Path("/post/{PostID:[0-9]+}").Methods("GET").Name(FeedPost)
 
 	return m
 }

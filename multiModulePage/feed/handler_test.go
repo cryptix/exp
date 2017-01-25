@@ -44,5 +44,5 @@ func TestURLTo(t *testing.T) {
 	a.Equal("/", lnk)
 	lnk, ok = html.Find("#next").Attr("href")
 	a.True(ok)
-	a.Equal("/feed/3", lnk)
+	a.Equal("/post/3", lnk)
 }

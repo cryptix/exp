@@ -11,16 +11,12 @@ import (
 
 	"github.com/cryptix/go/http/render"
 	"github.com/gorilla/mux"
+	"gopkg.in/errgo.v1"
 
 	"github.com/cryptix/exp/multiModulePage"
 	"github.com/cryptix/exp/multiModulePage/feed"
 	"github.com/cryptix/exp/multiModulePage/router"
-	"gopkg.in/errgo.v1"
 )
-
-func init() {
-
-}
 
 // Handler creates a full fledged http handler for the TIS Daemon app
 func Handler(m *mux.Router) (http.Handler, error) {

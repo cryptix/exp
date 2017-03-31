@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"gopkg.in/errgo.v1"
+	"github.com/pkg/errors"
 )
 
 type Type int
@@ -123,12 +123,12 @@ func (o Object) String() string {
 func DecodeObject(r io.Reader) (*Object, error) {
 	zr, err := zlib.NewReader(r)
 	if err != nil {
-		return nil, errgo.Notef(err, "zlib newReader failed")
+		return nil, errors.Wrapf(err, "zlib newReader failed")
 	}
 	br := bufio.NewReader(zr)
 	header, err := br.ReadBytes(0)
 	if err != nil {
-		return nil, errgo.Notef(err, "error finding header 0byte")
+		return nil, errors.Wrapf(err, "error finding header 0byte")
 	}
 	o := &Object{}
 	var hdrLenStr string
@@ -143,11 +143,11 @@ func DecodeObject(r io.Reader) (*Object, error) {
 		o.Type = CommitT
 		hdrLenStr = string(header[7 : len(header)-1])
 	default:
-		return nil, errgo.Newf("illegal git object:%q", header)
+		return nil, errors.Errorf("illegal git object:%q", header)
 	}
 	hdrLen, err := strconv.ParseInt(hdrLenStr, 10, 64)
 	if err != nil {
-		return nil, errgo.Notef(err, "error parsing header length")
+		return nil, errors.Wrapf(err, "error parsing header length")
 	}
 	o.Size = hdrLen
 	lr := io.LimitReader(br, hdrLen)
@@ -155,51 +155,53 @@ func DecodeObject(r io.Reader) (*Object, error) {
 	case BlobT:
 		content, err := ioutil.ReadAll(lr)
 		if err != nil {
-			return nil, errgo.Notef(err, "error finding header 0byte")
+			return nil, errors.Wrapf(err, "error finding header 0byte")
 		}
 		o.blob = newBlob(content)
 	case TreeT:
 		o.tree, err = decodeTreeEntries(lr)
 		if err != nil {
-			if errgo.Cause(err) == io.EOF {
+			if errors.Cause(err) == io.EOF {
 				return o, nil
 			}
-			return nil, errgo.Notef(err, "decodecodeTreeEntries failed")
+			return nil, errors.Wrapf(err, "decodecodeTreeEntries failed")
 		}
 	case CommitT:
 		o.commit, err = decodeCommit(lr)
 		if err != nil {
-			return nil, errgo.Notef(err, "decodeCommit() failed")
+			return nil, errors.Wrapf(err, "decodeCommit() failed")
 		}
 	default:
-		return nil, errgo.Newf("illegal object type:%T %v", o.Type, o.Type)
+		return nil, errors.Errorf("illegal object type:%T %v", o.Type, o.Type)
 	}
 	return o, nil
 }
 
 func decodeTreeEntries(r io.Reader) ([]Tree, error) {
-	isEOF := errgo.Is(io.EOF)
+	isEOF := func(err error) bool {
+		return err == io.EOF
+	}
 	var entries []Tree
 	br := bufio.NewReader(r)
 	for {
 		var t Tree
 		hdr, err := br.ReadSlice(0)
 		if err != nil {
-			return entries, errgo.NoteMask(err, "error finding modeName 0byte", isEOF)
+			return entries, errors.Wrapf(err, "error finding modeName 0byte", isEOF)
 		}
 		modeName := bytes.Split(hdr[:len(hdr)-1], []byte(" "))
 		if len(modeName) != 2 {
-			return entries, errgo.Newf("illegal modeName block: %v", modeName)
+			return entries, errors.Errorf("illegal modeName block: %v", modeName)
 		}
 		t.Mode = string(modeName[0])
 		t.Name = string(modeName[1])
 		var hash [sha1.Size]byte
 		n, err := br.Read(hash[:])
 		if err != nil {
-			return entries, errgo.NoteMask(err, "br.Read() hash failed", isEOF)
+			return entries, errors.Wrapf(err, "br.Read() hash failed", isEOF)
 		}
 		if n != 20 {
-			return entries, errgo.Newf("br.Read() fell short: %d", n)
+			return entries, errors.Errorf("br.Read() fell short: %d", n)
 		}
 		t.SHA1Sum = hash
 		entries = append(entries, t)
@@ -223,23 +225,23 @@ func decodeCommit(r io.Reader) (*Commit, error) {
 		case strings.HasPrefix(line, "author "):
 			c.Author, err = decodeStamp(line[7:])
 			if err != nil {
-				return nil, errgo.Notef(err, "decodeStamp(%q) failed", line[7:])
+				return nil, errors.Wrapf(err, "decodeStamp(%q) failed", line[7:])
 			}
 		case strings.HasPrefix(line, "committer "):
 			c.Committer, err = decodeStamp(line[10:])
 			if err != nil {
-				return nil, errgo.Notef(err, "decodeStamp(%q) failed", line[10:])
+				return nil, errors.Wrapf(err, "decodeStamp(%q) failed", line[10:])
 			}
 		case line == "":
 			isMsg = true
 		case isMsg:
 			c.Message += line
 		default:
-			return nil, errgo.Newf("unhandled commit line: %q", line)
+			return nil, errors.Errorf("unhandled commit line: %q", line)
 		}
 	}
 	if err := s.Err(); err != nil {
-		return nil, errgo.Notef(err, "scanner error")
+		return nil, errors.Wrapf(err, "scanner error")
 	}
 	return &c, nil
 }
@@ -248,14 +250,14 @@ func decodeStamp(s string) (*Stamp, error) {
 	var stamp Stamp
 	mailIdxLeft := strings.Index(s, "<")
 	if mailIdxLeft == -1 {
-		return nil, errgo.New("stamp: no '<' in stamp")
+		return nil, errors.New("stamp: no '<' in stamp")
 	}
 	mailIdxRight := strings.Index(s, ">")
 	if mailIdxRight == -1 {
-		return nil, errgo.New("stamp: no '>' in stamp")
+		return nil, errors.New("stamp: no '>' in stamp")
 	}
 	if mailIdxLeft > mailIdxRight {
-		return nil, errgo.New("stamp: '>' left of '<'")
+		return nil, errors.New("stamp: '>' left of '<'")
 	}
 	if mailIdxLeft == 0 {
 		stamp.Name = "empty name"
@@ -264,16 +266,16 @@ func decodeStamp(s string) (*Stamp, error) {
 	}
 	stamp.Email = s[mailIdxLeft+1 : mailIdxRight]
 	if len(s)-6-(mailIdxRight+2) < 0 {
-		return nil, errgo.Newf("stamp: illegal timestamp: %q", s)
+		return nil, errors.Errorf("stamp: illegal timestamp: %q", s)
 	}
 	epoc, err := strconv.ParseInt(s[mailIdxRight+2:len(s)-6], 10, 64)
 	if err != nil {
-		return nil, errgo.Notef(err, "parseInt() failed")
+		return nil, errors.Wrapf(err, "parseInt() failed")
 	}
 	when := time.Unix(epoc, 0)
 	loc, err := time.Parse("-0700", s[len(s)-5:])
 	if err != nil {
-		return nil, errgo.Notef(err, "timezone decode failed")
+		return nil, errors.Wrapf(err, "timezone decode failed")
 	}
 	stamp.When = when.In(loc.Location())
 	return &stamp, nil

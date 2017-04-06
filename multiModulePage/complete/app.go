@@ -24,7 +24,7 @@ func Handler(m *mux.Router) (http.Handler, error) {
 		m = router.CompleteApp()
 	}
 	r, err := render.New(multiModulePage.Assets,
-		render.BaseTemplate("/complete/base.tmpl"),
+		render.BaseTemplates("/complete/base.tmpl"),
 		render.AddTemplates(append(feed.HTMLTemplates,
 			"/complete/index.tmpl",
 			"/complete/about.tmpl",
@@ -33,7 +33,6 @@ func Handler(m *mux.Router) (http.Handler, error) {
 			"urlTo": multiModulePage.NewURLTo(m),
 		}),
 	)
-	feed.SetRenderer(r)
 	if err != nil {
 		return nil, errgo.Notef(err, "complete.Handler: failed to create renderer")
 	}
@@ -41,7 +40,7 @@ func Handler(m *mux.Router) (http.Handler, error) {
 	// javascript, images, ...
 	//	m.PathPrefix("/assets/").Handler(http.StripPrefix("/assets/", http.FileServer(assets)))
 
-	m.PathPrefix("/feed").Handler(http.StripPrefix("/feed", feed.Handler(m)))
+	m.PathPrefix("/feed").Handler(http.StripPrefix("/feed", feed.Handler(m, r)))
 	// m.PathPrefix("/news").Handler(http.StripPrefix("/news", news.Handler(m)))
 	// m.PathPrefix("/profile").Handler(http.StripPrefix("/profile", profile.Handler(m)))
 

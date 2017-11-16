@@ -3,16 +3,25 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/ChimeraCoder/anaconda"
-	"github.com/baobabus/gcfg"
 	"github.com/cryptix/go/logging"
+	"github.com/jinzhu/configor"
+	"github.com/kr/pretty"
+	"github.com/pkg/errors"
 )
 
-var log = logging.Logger("twitClone")
+var (
+	log   logging.Interface
+	check = logging.CheckFatal
+)
 
 var cfgFile = flag.String("config", "my.cfg", "which config file to use")
 
@@ -27,15 +36,19 @@ type Config struct {
 		Email          string
 		UpdateInterval string
 		Debug          bool
+		Update         string
+		Lists          string
 	}
 }
 
 func main() {
 	logging.SetupLogging(nil)
+	log = logging.Logger("twitClone")
 
 	// setup config
 	var cfg Config
-	logging.CheckFatal(gcfg.ReadFileInto(&cfg, *cfgFile))
+	check(configor.Load(&cfg, *cfgFile))
+	pretty.Println(cfg)
 
 	// setup anaconda
 	anaconda.SetConsumerKey(cfg.Anaconda.ConsumerKey)
@@ -44,8 +57,11 @@ func main() {
 	//api.SetLogger(anaconda.BasicLogger)
 
 	ok, err := api.VerifyCredentials()
-	logging.CheckFatal(err)
-	log.Info("Credentials:", ok)
+	check(err)
+	log.Log("event", "info", "login", ok)
+
+	ud, err := time.ParseDuration(cfg.Config.Update)
+	check(err)
 
 	// Mechanical stuff
 	//rand.Seed(time.Now().UnixNano())
@@ -56,10 +72,36 @@ func main() {
 		errc <- interrupt()
 	}()
 
+	for _, l := range strings.Split(cfg.Config.Lists, ",") {
+		id, err := strconv.ParseInt(l, 10, 64)
+		check(err)
+		list, err := api.GetList(id, url.Values{})
+		check(err)
+		pretty.Println(list)
+
+		go func(l anaconda.List) {
+			c := time.Tick(ud)
+			for _ = range c {
+
+				tweets, err := api.GetListTweets(list.Id, true, url.Values{})
+				check(errors.Wrapf(err, "faild to get tweets for list %s", list.Name))
+				log.Log("event", "new tweets", "count", len(tweets))
+				if len(tweets) > 0 {
+					t := tweets[0]
+					log.Log("event", "info", "type", "tweet-onlist", "list", list.Name,
+						"user", t.User.ScreenName,
+						"userid", t.User.Id,
+						"tweetid", t.Id,
+						"text", t.Text)
+				}
+			}
+		}(list)
+	}
+
 	// Pull: my feed
 	//go func() {
 	//dur, err := time.ParseDuration(cfg.Config.UpdateInterval)
-	//logging.CheckFatal(err)
+	//check(err)
 	//	t := time.Tick(dur)
 	//	for now := range t {
 	//		// pulls MY timeline
@@ -68,7 +110,7 @@ func main() {
 	//			errc <- err
 	//			return
 	//		}
-	//		logging.CheckFatal(err)
+	//		check(err)
 	//		for _, tweet := range tweets {
 	//			log.WithFields(map[string]interface{}{
 	//				"user":    tweet.User.ScreenName,
@@ -85,45 +127,40 @@ func main() {
 
 	// Stream: my timeline
 	//go cloneStream("site", api.SiteStream(nil), errc)
-	go cloneStream("user", api.UserStream(nil), errc)
+	//go cloneStream("user", api.UserStream(nil), errc)
 
-	log.Fatal("global error:", <-errc)
+	check(<-errc)
 }
 
-func cloneStream(name string, s anaconda.Stream, errc chan<- error) {
-	go func() {
-		v := <-s.Quit
-		errc <- fmt.Errorf("stream[%s] quit: %v", name, v)
-	}()
+func cloneStream(name string, s *anaconda.Stream, errc chan<- error) {
 	for msg := range s.C {
 		switch t := msg.(type) {
 
 		case anaconda.FriendsList:
-			log.WithField("count", len(t)).Infof("friends[%s]", name)
+			log.Log("event", "stats", "friends", len(t))
 
 		case anaconda.Tweet:
-			log.WithFields(map[string]interface{}{
-				"user":    t.User.ScreenName,
-				"userid":  t.User.Id,
-				"tweetid": t.Id,
-			}).Infof("tweet[%s] %s", name, t.Text)
+			log.Log("event", "info", "type", "tweet",
+				"user", t.User.ScreenName,
+				"userid", t.User.Id,
+				"tweetid", t.Id,
+				"text", t.Text)
 
 		case anaconda.EventTweet:
 			var tweet anaconda.Tweet = *t.TargetObject
-			log.WithFields(map[string]interface{}{
-				"user":    tweet.User.ScreenName,
-				"userid":  tweet.User.Id,
-				"tweetid": tweet.Id,
-			}).Infof("Eventtweet[%s] %s", name, tweet.Text)
+			log.Log("event", "info", "type", "eventTweet",
+				"user", tweet.User.ScreenName,
+				"userid", tweet.User.Id,
+				"tweetid", tweet.Id,
+				"text", tweet.Text)
 
 		case anaconda.StatusDeletionNotice:
-			log.WithFields(map[string]interface{}{
-				"userid":  t.UserId,
-				"tweetid": t.Id,
-			}).Warningf("tweet[%s] deleted", name)
+			log.Log("event", "info", "type", "deleted tweet",
+				"userid", t.UserId,
+				"tweetid", t.Id)
 
 		default:
-			log.Error("uncased msg %T %+v", t, msg)
+			log.Log("event", "error", "msg", "uncased msg", "type", fmt.Sprintf("%T %+v", t, msg))
 		}
 	}
 }
